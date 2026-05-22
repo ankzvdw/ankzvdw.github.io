@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Office Desk Check-in</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f5f4f0; --surface: #ffffff; --surface-2: #efede8;
+      --border: rgba(0,0,0,0.10); --border-strong: rgba(0,0,0,0.18);
+      --text: #1a1a18; --text-2: #6b6b65; --text-3: #a09f9a;
+      --green: #9e1d8d; --green-light: #f5e1f2; --green-dark: #6e0f63; --green-text: #50084b;
+      --blue: #378ADD; --blue-light: #E6F1FB; --blue-dark: #185FA5; --blue-text: #0C447C;
+      --radius: 10px; --radius-lg: 14px;
+    }
+    body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 2rem 1rem 4rem; }
+    .page { max-width: 860px; margin: 0 auto; }
+
+    #setup-banner {
+      background: #FFF8E6; border: 1px solid #EFC96A; border-radius: var(--radius-lg);
+      padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; font-size: 13px; line-height: 1.7; color: #5a4200;
+    }
+    #setup-banner strong { font-weight: 500; display: block; margin-bottom: 6px; font-size: 14px; }
+    #setup-banner code { background: rgba(0,0,0,0.08); padding: 1px 5px; border-radius: 4px; font-family: 'DM Mono', monospace; font-size: 12px; }
+    #setup-banner ol { margin: 8px 0 0 16px; }
+    #setup-banner li { margin-bottom: 4px; }
+    #dismiss-banner { margin-top: 10px; font-size: 12px; background: none; border: 1px solid #EFC96A; border-radius: var(--radius); padding: 5px 12px; cursor: pointer; color: #5a4200; font-family: 'DM Sans', sans-serif; }
+    #dismiss-banner:hover { background: rgba(0,0,0,0.05); }
+
+    #conn-status { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-3); margin-bottom: 1.5rem; }
+    #conn-dot { width: 7px; height: 7px; border-radius: 50%; background: #ccc; transition: background 0.3s; }
+    #conn-dot.live  { background: var(--green); }
+    #conn-dot.local { background: #f0a500; }
+    #conn-dot.error { background: #e24b4a; }
+
+    .page-header { margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border); }
+    .page-header h1 { font-size: 22px; font-weight: 500; letter-spacing: -0.02em; }
+    .page-header p  { font-size: 13px; color: var(--text-2); margin-top: 5px; }
+    .legend { display: flex; gap: 18px; margin-top: 14px; flex-wrap: wrap; }
+    .legend-item { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--text-2); }
+    .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    .dot-phd-in  { background: var(--green); }
+    .dot-phd-out { background: #c8c6c0; }
+    .dot-master  { background: var(--blue); }
+
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 2rem; }
+    .stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+    .stat-label { font-size: 11px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 4px; }
+    .stat-val   { font-size: 28px; font-weight: 500; font-family: 'DM Mono', monospace; color: var(--text); letter-spacing: -0.02em; }
+
+    .section { margin-bottom: 2rem; }
+    .section-label { font-size: 10px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-3); margin-bottom: 12px; }
+    .desk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
+
+    .desk-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 14px; transition: border-color 0.15s, background 0.15s, transform 0.1s; }
+    .desk-card:hover { transform: translateY(-1px); border-color: var(--border-strong); }
+    .desk-card.phd-in          { background: var(--green-light); border-color: var(--green); }
+    .desk-card.master-in       { background: var(--blue-light);  border-color: var(--blue); }
+    .desk-card.master-borrowed { background: var(--blue-light);  border: 1px dashed var(--blue); }
+
+    .desk-top   { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+    .desk-name  { font-size: 13px; font-weight: 500; color: var(--text); }
+    .desk-owner { font-size: 11px; color: var(--text-2); margin-bottom: 8px; font-family: 'DM Mono', monospace; }
+    .badge { font-size: 10px; font-weight: 500; padding: 2px 8px; border-radius: 20px; }
+    .badge-phd    { background: #e19fd6; color: var(--green-text); }
+    .badge-master { background: #B5D4F4; color: var(--blue-text); }
+
+    .desk-status { font-size: 12px; color: var(--text-2); margin-bottom: 10px; min-height: 16px; }
+    .desk-status.in       { color: var(--green-dark); font-weight: 500; }
+    .desk-status.occupied { color: var(--blue-dark);  font-weight: 500; }
+
+    .btn { width: 100%; padding: 7px 0; font-size: 12px; font-family: 'DM Sans', sans-serif; border: 1px solid var(--border-strong); border-radius: var(--radius); background: transparent; color: var(--text); cursor: pointer; transition: background 0.12s, border-color 0.12s, color 0.12s; }
+    .btn:hover { background: var(--surface-2); }
+    .btn + .btn { margin-top: 6px; font-size: 11px; }
+    .btn.phd-active    { background: var(--green); border-color: var(--green); color: #fff; }
+    .btn.phd-active:hover { background: var(--green-dark); }
+    .btn.master-active { background: var(--blue); border-color: var(--blue); color: #fff; }
+    .btn.master-active:hover { background: var(--blue-dark); }
+
+    .overlay { position: fixed; inset: 0; background: rgba(20,20,18,0.45); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 1rem; backdrop-filter: blur(2px); }
+    .modal { background: var(--surface); border-radius: var(--radius-lg); border: 1px solid var(--border); padding: 1.5rem; width: 300px; max-width: 100%; animation: pop 0.15s ease; }
+    @keyframes pop { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .modal h3 { font-size: 15px; font-weight: 500; margin-bottom: 5px; }
+    .modal p  { font-size: 13px; color: var(--text-2); margin-bottom: 1rem; line-height: 1.5; }
+    .modal input { width: 100%; font-size: 13px; font-family: 'DM Sans', sans-serif; padding: 9px 12px; border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--bg); color: var(--text); margin-bottom: 12px; outline: none; transition: border-color 0.12s; }
+    .modal input:focus { border-color: var(--blue); }
+    .modal-actions { display: flex; gap: 8px; }
+    .modal-actions .btn { flex: 1; }
+    .modal-actions .confirm-phd    { background: var(--green); border-color: var(--green); color: #fff; }
+    .modal-actions .confirm-master { background: var(--blue);  border-color: var(--blue);  color: #fff; }
+
+    .footer { text-align: center; font-size: 11px; color: var(--text-3); margin-top: 2rem; font-family: 'DM Mono', monospace; }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <div id="setup-banner">
+    <strong>⚙️ One-time Firebase setup — read this first</strong>
+    To enable real-time sync across all browsers, follow these steps:
+    <ol>
+      <li>Go to <a href="https://console.firebase.google.com" target="_blank" style="color:inherit;font-weight:500;">console.firebase.google.com</a> and create a project (any name; you can disable Google Analytics).</li>
+      <li>In the left sidebar choose <strong>Build → Realtime Database → Create database</strong>. Pick any region, then select <strong>Start in test mode</strong>.</li>
+      <li>After it's created, copy the database URL shown at the top — it looks like <code>https://your-project-default-rtdb.europe-west1.firebasedatabase.app</code></li>
+      <li>Open this HTML file in any text editor, find <code>FIREBASE_URL = 'https://console.firebase.google.com/u/0/project/deskapp-c583d/database/deskapp-c583d-default-rtdb/data'</code> near the top of the script, and paste the URL between the quotes.</li>
+      <li>Save and open in your browser. The dot top-left turns green when live.</li>
+    </ol>
+    <button id="dismiss-banner">Got it, hide this</button>
+  </div>
+
+  <div id="conn-status"><div id="conn-dot"></div><span id="conn-label">not configured</span></div>
+
+  <header class="page-header">
+    <h1>Office desk check-in</h1>
+    <p>Here you can check who is or will be in the office today, and if there are any free desks.</p>
+    <div class="legend">
+      <div class="legend-item"><div class="dot dot-phd-in"></div> PhD in office</div>
+      <div class="legend-item"><div class="dot dot-phd-out"></div> PhD away — desk free</div>
+      <div class="legend-item"><div class="dot dot-master"></div> Used by Masters student</div>
+    </div>
+  </header>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-label">PhD students in</div><div class="stat-val" id="stat-phd">0</div></div>
+    <div class="stat"><div class="stat-label">Free desks</div><div class="stat-val" id="stat-free">0</div></div>
+    <div class="stat"><div class="stat-label">Masters using</div><div class="stat-val" id="stat-master">0</div></div>
+  </div>
+
+  <section class="section">
+    <div class="section-label">PhD desks</div>
+    <div class="desk-grid" id="phd-grid"></div>
+  </section>
+
+  <section class="section">
+    <div class="section-label">Masters desks</div>
+    <div class="desk-grid" id="master-grid"></div>
+  </section>
+
+  <div class="footer" id="last-updated"></div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+//  STEP 1 — paste your Firebase Realtime Database URL here
+//  e.g. 'https://my-office-default-rtdb.europe-west1.firebasedatabase.app'
+// ══════════════════════════════════════════════════════════
+const FIREBASE_URL = 'https://deskapp-c583d-default-rtdb.europe-west1.firebasedatabase.app/';
+
+// ══════════════════════════════════════════════════════════
+//  STEP 2 — edit desks and PhD owner names to match your office
+// ══════════════════════════════════════════════════════════
+const DESKS = {
+  phd: [
+    { id: 'p1', name: '407: Desk Pit', owner: 'Pit Bermes' },
+    { id: 'p2', name: '407: Desk Ola', owner: 'Ola Carlsson' },
+    { id: 'p3', name: '411: Desk Fabian', owner: 'Fabian Döschl' },
+    { id: 'p4', name: '411: Desk Gaia', owner: 'Gaia de Paciani' },
+    { id: 'p5', name: '412: Desk Annika', owner: 'Annika Böhler' },
+    { id: 'p6', name: '412: Desk Hannah', owner: 'Hannah Lange' },
+    { id: 'p7', name: '412: Desk Simon', owner: 'Simon Linsel' },
+    { id: 'p8', name: '412: Desk Tizian', owner: 'Tizian Blatz' },
+    { id: 'p9', name: '413: Desk Atiye', owner: 'Atiye Abedinnia' },
+    { id: 'p10', name: '413: Desk Giorgia', owner: 'Giorgia Busin' },
+    { id: 'p11', name: '413: Desk Julius', owner: 'Julius Tirpitz' },
+    { id: 'p12', name: '418: Desk Annabelle', owner: 'Annabelle Bohrdt' },
+    { id: 'p13', name: '402: Desk Fabian', owner: 'Fabian Grusdt' },
+    { id: 'p14', name: '403: Desk Tim', owner: 'Tim Harris' },
+  ],
+  master: [
+    { id: 'm1', name: 'Desk M1' },
+    { id: 'm2', name: 'Desk M2' },
+    { id: 'm3', name: 'Desk M3' },
+    { id: 'm4', name: 'Desk M4' },
+    { id: 'm5', name: 'Desk M5' },
+    { id: 'm6', name: 'Desk M6' },
+  ]
+};
+
+// ══════════════════════════════════════════════════════════
+//  Internals — no need to edit below
+// ══════════════════════════════════════════════════════════
+const DB_PATH  = '/office_state.json';
+const LOCAL_KEY = 'office_checkin_v1';
+let state = {};
+let useFirebase = false;
+
+function defaultState() {
+  const s = {};
+  DESKS.phd.forEach(d => s[d.id] = { phdIn: false, masterIn: false, masterName: '' });
+  DESKS.master.forEach(d => s[d.id] = { masterIn: false, masterName: '' });
+  return s;
+}
+
+// Setup banner
+const banner = document.getElementById('setup-banner');
+if (localStorage.getItem('banner_dismissed') || FIREBASE_URL) banner.style.display = 'none';
+document.getElementById('dismiss-banner').onclick = () => {
+  banner.style.display = 'none';
+  localStorage.setItem('banner_dismissed', '1');
+};
+
+// Connection indicator
+function setStatus(mode) {
+  const dot = document.getElementById('conn-dot');
+  const lbl = document.getElementById('conn-label');
+  dot.className = '';
+  if (mode === 'live')  { dot.classList.add('live');  lbl.textContent = 'live sync via Firebase'; }
+  if (mode === 'local') { dot.classList.add('local'); lbl.textContent = 'local only — add Firebase URL to sync'; }
+  if (mode === 'error') { dot.classList.add('error'); lbl.textContent = 'Firebase error — using local fallback'; }
+}
+
+// ── Firebase REST helpers ─────────────────────────────────
+// The Firebase Realtime Database exposes a simple REST API.
+// Append .json to any path to GET (read) or PUT (write) JSON data.
+// No SDK needed — plain fetch() is enough for this use case.
+async function fbGet() {
+  const r = await fetch(FIREBASE_URL + DB_PATH);
+  if (!r.ok) throw new Error('GET ' + r.status);
+  const d = await r.json();
+  return d || defaultState();
+}
+async function fbPut(data) {
+  const r = await fetch(FIREBASE_URL + DB_PATH, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!r.ok) throw new Error('PUT ' + r.status);
+}
+
+// ── Load / save ───────────────────────────────────────────
+async function loadState() {
+  if (useFirebase) {
+    try {
+      state = await fbGet();
+      // Ensure new desks added later are initialised
+      DESKS.phd.forEach(d => { if (!state[d.id]) state[d.id] = { phdIn: false, masterIn: false, masterName: '' }; });
+      DESKS.master.forEach(d => { if (!state[d.id]) state[d.id] = { masterIn: false, masterName: '' }; });
+    } catch(e) {
+      console.warn('Firebase read error, falling back to local', e);
+      setStatus('error'); useFirebase = false;
+      state = loadLocal();
+    }
+  } else {
+    state = loadLocal();
+  }
+}
+
+function loadLocal() {
+  try { const r = localStorage.getItem(LOCAL_KEY); return r ? JSON.parse(r) : defaultState(); }
+  catch(e) { return defaultState(); }
+}
+
+async function saveState() {
+  if (useFirebase) {
+    try { await fbPut(state); }
+    catch(e) { console.warn('Firebase write error', e); setStatus('error'); }
+  }
+  try { localStorage.setItem(LOCAL_KEY, JSON.stringify(state)); } catch(e) {}
+  updateFooter();
+}
+
+// ── Polling (checks for remote changes every 10 s) ────────
+// Firebase's free REST API doesn't push changes in real time,
+// so we poll. For a small office 10 s is plenty.
+setInterval(async () => {
+  if (!useFirebase) return;
+  try { state = await fbGet(); render(); } catch(e) {}
+}, 10000);
+
+// ── Modal ─────────────────────────────────────────────────
+function showModal({ title, desc, confirmLabel, confirmClass, onConfirm }) {
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML = `<div class="modal" role="dialog" aria-modal="true">
+    <h3>${title}</h3><p>${desc}</p>
+    <input type="text" id="modal-input" placeholder="Your name" autocomplete="off" />
+    <div class="modal-actions">
+      <button class="btn" id="modal-cancel">Cancel</button>
+      <button class="btn ${confirmClass}" id="modal-confirm">${confirmLabel}</button>
+    </div></div>`;
+  document.body.appendChild(ov);
+  const inp = ov.querySelector('#modal-input'); inp.focus();
+  const close   = () => ov.remove();
+  const confirm = () => { close(); onConfirm(inp.value.trim()); };
+  ov.querySelector('#modal-cancel').onclick  = close;
+  ov.querySelector('#modal-confirm').onclick = confirm;
+  inp.onkeydown = e => { if (e.key === 'Enter') confirm(); if (e.key === 'Escape') close(); };
+  ov.onclick = e => { if (e.target === ov) close(); };
+}
+
+// ── Render ────────────────────────────────────────────────
+function renderPhdCard(desk) {
+  const ds = state[desk.id] || { phdIn: false, masterIn: false, masterName: '' };
+  const card = document.createElement('div');
+  card.className = 'desk-card' + (ds.phdIn ? ' phd-in' : ds.masterIn ? ' master-borrowed' : '');
+
+  let statusText = 'Free', statusClass = '';
+  if (ds.phdIn)       { statusText = desk.owner + ' is in'; statusClass = 'in'; }
+  else if (ds.masterIn) { statusText = 'Used by ' + (ds.masterName || 'Masters student'); statusClass = 'occupied'; }
+
+  card.innerHTML = `
+    <div class="desk-top"><div class="desk-name">${desk.name}</div><span class="badge badge-phd">PhD</span></div>
+    <div class="desk-owner">${desk.owner}</div>
+    <div class="desk-status ${statusClass}">${statusText}</div>
+    <button class="btn ${ds.phdIn ? 'phd-active' : ''}" data-action="phd-toggle" data-id="${desk.id}">
+      ${ds.phdIn ? 'Check out' : 'PhD: Check in'}</button>
+    ${!ds.phdIn ? `<button class="btn ${ds.masterIn ? 'master-active' : ''}" data-action="master-toggle" data-id="${desk.id}">
+      ${ds.masterIn ? 'Masters: Free up' : 'Masters: Use it'}</button>` : ''}`;
+  return card;
+}
+
+function renderMasterCard(desk) {
+  const ds = state[desk.id] || { masterIn: false, masterName: '' };
+  const card = document.createElement('div');
+  card.className = 'desk-card' + (ds.masterIn ? ' master-in' : '');
+
+  const statusText = ds.masterIn ? (ds.masterName || 'Masters student') + ' is in' : 'Free';
+  card.innerHTML = `
+    <div class="desk-top"><div class="desk-name">${desk.name}</div><span class="badge badge-master">Masters</span></div>
+    <div class="desk-status ${ds.masterIn ? 'in' : ''}" style="margin-bottom:10px;">${statusText}</div>
+    <button class="btn ${ds.masterIn ? 'master-active' : ''}" data-action="master-own-toggle" data-id="${desk.id}">
+      ${ds.masterIn ? 'Check out' : 'Check in'}</button>`;
+  return card;
+}
+
+function render() {
+  const pg = document.getElementById('phd-grid'), mg = document.getElementById('master-grid');
+  pg.innerHTML = ''; mg.innerHTML = '';
+  DESKS.phd.forEach(d => pg.appendChild(renderPhdCard(d)));
+  DESKS.master.forEach(d => mg.appendChild(renderMasterCard(d)));
+
+  let phdIn = 0, free = 0, masterUsing = 0;
+  DESKS.phd.forEach(d => { const ds = state[d.id]||{}; ds.phdIn ? phdIn++ : ds.masterIn ? masterUsing++ : free++; });
+  DESKS.master.forEach(d => { const ds = state[d.id]||{}; ds.masterIn ? masterUsing++ : free++; });
+  document.getElementById('stat-phd').textContent    = phdIn;
+  document.getElementById('stat-free').textContent   = free;
+  document.getElementById('stat-master').textContent = masterUsing;
+}
+
+function updateFooter() {
+  document.getElementById('last-updated').textContent =
+    'Last updated ' + new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+}
+
+// ── Event delegation ──────────────────────────────────────
+document.addEventListener('click', async e => {
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  const { action, id } = btn.dataset;
+
+  if (action === 'phd-toggle') {
+    if (state[id].phdIn) { state[id].phdIn = false; }
+    else { state[id].phdIn = true; state[id].masterIn = false; state[id].masterName = ''; }
+    await saveState(); render();
+  }
+
+  if (action === 'master-toggle') {
+    if (state[id].masterIn) {
+      state[id].masterIn = false; state[id].masterName = '';
+      await saveState(); render();
+    } else {
+      const desk = DESKS.phd.find(d => d.id === id);
+      showModal({ title: 'Use ' + desk.name, desc: desk.owner + ' is away. Enter your name to check in.',
+        confirmLabel: 'Check in', confirmClass: 'confirm-master',
+        onConfirm: async name => { state[id].masterIn = true; state[id].masterName = name || 'Masters student'; await saveState(); render(); }
+      });
+    }
+  }
+
+  if (action === 'master-own-toggle') {
+    if (state[id].masterIn) {
+      state[id].masterIn = false; state[id].masterName = '';
+      await saveState(); render();
+    } else {
+      const desk = DESKS.master.find(d => d.id === id);
+      showModal({ title: 'Check in to ' + desk.name, desc: 'Enter your name to check in.',
+        confirmLabel: 'Check in', confirmClass: 'confirm-master',
+        onConfirm: async name => { state[id].masterIn = true; state[id].masterName = name || 'Masters student'; await saveState(); render(); }
+      });
+    }
+  }
+});
+
+// ── Init ──────────────────────────────────────────────────
+async function init() {
+  useFirebase = !!(FIREBASE_URL && FIREBASE_URL.startsWith('https://'));
+  setStatus(useFirebase ? 'live' : 'local');
+  if (useFirebase) banner.style.display = 'none';
+  await loadState();
+  render();
+  updateFooter();
+}
+
+init();
+</script>
+</body>
+</html>
